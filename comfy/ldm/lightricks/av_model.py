@@ -180,10 +180,10 @@ class BasicAVTransformerBlock(nn.Module):
         )
 
         self.ff = FeedForward(
-            v_dim, dim_out=v_dim, glu=True, ff_bias=ff_bias, dtype=dtype, device=device, operations=operations
+            v_dim, dim_out=v_dim, glu=True, ff_bias=ff_bias, dtype=dtype, device=device, operations=operations, fused_input_act=True
         )
         self.audio_ff = FeedForward(
-            a_dim, dim_out=a_dim, glu=True, ff_bias=audio_ff_bias, dtype=dtype, device=device, operations=operations
+            a_dim, dim_out=a_dim, glu=True, ff_bias=audio_ff_bias, dtype=dtype, device=device, operations=operations, fused_input_act=True
         )
 
         num_ada_params = ADALN_CROSS_ATTN_PARAMS_COUNT if cross_attention_adaln else ADALN_BASE_PARAMS_COUNT
@@ -575,6 +575,9 @@ class LTXAVModel(LTXVModel):
             split_rope=connector_split_rope,
             double_precision_rope=True,
             apply_gated_attention=connector_gated_attention,
+            # 2.3 connectors widen their down projection, so its input no longer
+            # lines up with the up projection's output.
+            fused_ff_input_act=not kwargs.get("caption_proj_before_connector", False),
             dtype=dtype,
             device=device,
             operations=self.operations,
