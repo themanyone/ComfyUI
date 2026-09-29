@@ -51,6 +51,7 @@ class BasicTransformerBlock1D(nn.Module):
         attn_precision=None,
         apply_gated_attention=False,
         ff_bias=True,
+        fused_input_act=False,
         dtype=None,
         device=None,
         operations=None,
@@ -76,6 +77,7 @@ class BasicTransformerBlock1D(nn.Module):
             dim_out=dim,
             glu=True,
             ff_bias=ff_bias,
+            fused_input_act=fused_input_act,
             dtype=dtype,
             device=device,
             operations=operations,
@@ -131,6 +133,7 @@ class Embeddings1DConnector(nn.Module):
         operations=None,
         split_rope=False,
         double_precision_rope=False,
+        fused_ff_input_act=False,
         **kwargs,
     ):
         super().__init__()
@@ -152,6 +155,7 @@ class Embeddings1DConnector(nn.Module):
                     context_dim=cross_attention_dim,
                     apply_gated_attention=apply_gated_attention,
                     ff_bias=connector_ff_bias,
+                    fused_input_act=fused_ff_input_act,
                     dtype=dtype,
                     device=device,
                     operations=operations,

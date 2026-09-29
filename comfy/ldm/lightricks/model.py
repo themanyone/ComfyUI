@@ -312,9 +312,12 @@ class GELU_approx(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, dim_out, mult=4, glu=False, dropout=0.0, ff_bias=True, dtype=None, device=None, operations=None):
+    def __init__(self, dim, dim_out, mult=4, glu=False, dropout=0.0, ff_bias=True, dtype=None, device=None, operations=None, fused_input_act=False):
         super().__init__()
         inner_dim = int(dim * mult)
+        # glu halves the projection's output, so the down projection no longer
+        # consumes what the up projection produced; that rules out fusing them.
+        self.fused_input_act = fused_input_act and not glu
         project_in = GELU_approx(dim, inner_dim, bias=ff_bias, dtype=dtype, device=device, operations=operations)
 
         self.net = nn.Sequential(
@@ -324,7 +327,7 @@ class FeedForward(nn.Module):
     def forward(self, x):
         # net = [GELU_approx(proj), Dropout, Linear]; the fused path skips the
         # Dropout, so leave it to the stock path whenever it could be active.
-        if comfy.model_management.in_training:
+        if comfy.model_management.in_training or not self.fused_input_act:
             return self.net(x)
         return comfy.ops.linear_input_act(self.net[2], self.net[0].proj(x), "gelu_tanh")
 
@@ -524,7 +527,7 @@ class BasicTransformerBlock(nn.Module):
             device=device,
             operations=operations,
         )
-        self.ff = FeedForward(dim, dim_out=dim, glu=True, ff_bias=ff_bias, dtype=dtype, device=device, operations=operations)
+        self.ff = FeedForward(dim, dim_out=dim, glu=True, ff_bias=ff_bias, dtype=dtype, device=device, operations=operations, fused_input_act=True)
 
         self.attn2 = CrossAttention(
             query_dim=dim,
