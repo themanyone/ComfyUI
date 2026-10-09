@@ -148,7 +148,10 @@ class AudioVAE(torch.nn.Module):
             waveform, waveform_sample_rate, device=waveform.device
         )
 
-        latents = self.autoencoder.encode(mel_spec)
+        # The STFT window and mel filterbank are fp32 buffers, so the mel comes
+        # back fp32 regardless of the waveform dtype; match the encoder weights.
+        encoder_dtype = next(self.autoencoder.encoder.parameters()).dtype
+        latents = self.autoencoder.encode(mel_spec.to(encoder_dtype))
         posterior = DiagonalGaussianDistribution(latents)
         latent_mode = posterior.mode()
 
